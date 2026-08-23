@@ -104,7 +104,7 @@ def init_state() -> None:
 # ---------------------------------------------------------------------------
 # Provider calls
 # ---------------------------------------------------------------------------
-def call_openai(api_key: str, model: str, messages: list[dict], temperature: float) -> str:
+def call_openai(api_key: str, model: str, messages: list[dict]) -> str:
     """Call the OpenAI Chat Completions API and return the assistant text."""
     try:
         from openai import OpenAI
@@ -118,12 +118,11 @@ def call_openai(api_key: str, model: str, messages: list[dict], temperature: flo
     response = client.chat.completions.create(
         model=model,
         messages=full_messages,
-        temperature=temperature,
     )
     return response.choices[0].message.content or ""
 
 
-def call_anthropic(api_key: str, model: str, messages: list[dict], temperature: float) -> str:
+def call_anthropic(api_key: str, model: str, messages: list[dict]) -> str:
     """Call the Anthropic Messages API and return the assistant text.
 
     Anthropic takes the system prompt as a separate top-level argument rather
@@ -142,27 +141,26 @@ def call_anthropic(api_key: str, model: str, messages: list[dict], temperature: 
         system=SYSTEM_PROMPT,
         messages=messages,
         max_tokens=4096,
-        temperature=temperature,
     )
     # Content is a list of blocks; concatenate any text blocks.
     parts = [block.text for block in response.content if getattr(block, "type", None) == "text"]
     return "".join(parts)
 
 
-def get_reply(provider: str, api_key: str, model: str, messages: list[dict], temperature: float) -> str:
+def get_reply(provider: str, api_key: str, model: str, messages: list[dict]) -> str:
     """Dispatch to the correct provider."""
     if provider == "OpenAI":
-        return call_openai(api_key, model, messages, temperature)
+        return call_openai(api_key, model, messages)
     if provider == "Anthropic (Claude)":
-        return call_anthropic(api_key, model, messages, temperature)
+        return call_anthropic(api_key, model, messages)
     raise ValueError(f"Unknown provider: {provider}")
 
 
 # ---------------------------------------------------------------------------
 # UI
 # ---------------------------------------------------------------------------
-def render_sidebar() -> tuple[str, str, str, float]:
-    """Render the sidebar controls and return (provider, model, api_key, temperature)."""
+def render_sidebar() -> tuple[str, str, str]:
+    """Render the sidebar controls and return (provider, model, api_key)."""
     with st.sidebar:
         st.header("Settings")
 
@@ -192,8 +190,6 @@ def render_sidebar() -> tuple[str, str, str, float]:
         )
         st.session_state.api_key = api_key
 
-        temperature = st.slider("Temperature", 0.0, 1.0, 0.4, 0.05)
-
         st.divider()
         if st.button("Clear conversation", use_container_width=True):
             st.session_state.messages = []
@@ -204,7 +200,7 @@ def render_sidebar() -> tuple[str, str, str, float]:
             "from other visitors. Closing the tab discards it."
         )
 
-    return provider, model, api_key, temperature
+    return provider, model, api_key
 
 
 def render_intro() -> None:
@@ -230,7 +226,7 @@ def main() -> None:
     st.set_page_config(page_title="AI Curious Mind", page_icon="🧠", layout="centered")
     init_state()
 
-    provider, model, api_key, temperature = render_sidebar()
+    provider, model, api_key = render_sidebar()
     render_intro()
     render_history()
 
@@ -256,7 +252,6 @@ def main() -> None:
                     api_key=api_key.strip(),
                     model=model,
                     messages=st.session_state.messages,
-                    temperature=temperature,
                 )
             except Exception as exc:  # surface a clean message to the user
                 st.error(f"Request failed: {exc}")
