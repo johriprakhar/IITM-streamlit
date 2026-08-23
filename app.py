@@ -28,6 +28,7 @@ Security model for the API key:
 
 from __future__ import annotations
 
+import pandas as pd
 import streamlit as st
 
 # ---------------------------------------------------------------------------
@@ -86,6 +87,50 @@ PROVIDER_MODELS = {
         "claude-3-opus-latest",
     ],
 }
+
+# Approximate public API pricing in USD per 1 million tokens (input / output).
+# Indicative only - always confirm current rates on the provider's pricing page.
+# Sources: OpenAI (platform.openai.com/pricing) and Anthropic
+# (anthropic.com pricing) as published in 2025.
+MODEL_PRICING = {
+    # OpenAI
+    "gpt-4o": {"input": 2.50, "output": 10.00},
+    "gpt-4o-mini": {"input": 0.15, "output": 0.60},
+    "gpt-4.1": {"input": 2.00, "output": 8.00},
+    "gpt-4.1-mini": {"input": 0.40, "output": 1.60},
+    # Anthropic (Claude)
+    "claude-3-5-sonnet-latest": {"input": 3.00, "output": 15.00},
+    "claude-3-5-haiku-latest": {"input": 0.80, "output": 4.00},
+    "claude-3-opus-latest": {"input": 15.00, "output": 75.00},
+}
+
+
+def pricing_table(provider: str) -> pd.DataFrame:
+    """Build a pricing table for a provider, sorted cheapest to most expensive.
+
+    Rows are ordered by input price (then output price) so the table runs from
+    the minimum-priced model to the maximum-priced one.
+    """
+    rows = []
+    for model_name in PROVIDER_MODELS.get(provider, []):
+        price = MODEL_PRICING.get(model_name)
+        if not price:
+            continue
+        rows.append(
+            {
+                "Model": model_name,
+                "Input ($/1M tokens)": price["input"],
+                "Output ($/1M tokens)": price["output"],
+            }
+        )
+
+    df = pd.DataFrame(rows)
+    if not df.empty:
+        df = df.sort_values(
+            by=["Input ($/1M tokens)", "Output ($/1M tokens)"],
+            ascending=True,
+        ).reset_index(drop=True)
+    return df
 
 
 # ---------------------------------------------------------------------------
@@ -176,6 +221,28 @@ def render_sidebar() -> tuple[str, str, str]:
         )
         if custom_model.strip():
             model = custom_model.strip()
+
+        # Pricing reference for the selected provider, cheapest first.
+        with st.expander(f"{provider} pricing (min → max)", expanded=True):
+            df = pricing_table(provider)
+            if df.empty:
+                st.caption("No pricing data available for this provider.")
+            else:
+                st.dataframe(
+                    df.style.format(
+                        {
+                            "Input ($/1M tokens)": "${:,.2f}",
+                            "Output ($/1M tokens)": "${:,.2f}",
+                        }
+                    ),
+                    hide_index=True,
+                    use_container_width=True,
+                )
+                st.caption(
+                    "USD per 1M tokens, sorted cheapest to most expensive. "
+                    "Indicative only - check the provider's pricing page for "
+                    "current rates."
+                )
 
         # The key input. type="password" masks it in the UI. We store it in
         # session_state so it survives reruns without being persisted anywhere.
