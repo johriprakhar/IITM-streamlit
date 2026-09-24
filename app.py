@@ -271,7 +271,7 @@ def render_sidebar() -> tuple[str, str, str]:
 
 
 def render_intro() -> None:
-    st.title("AI Curious Mind")
+    st.title("AI Curious Mind by Prakhar")
     st.write(
         "Paste a topic, a heading, a bullet list of sub-topics, or a whole "
         "module and I'll teach it - with an analogy, the technical depth, a "
@@ -290,7 +290,7 @@ def render_history() -> None:
 # Main
 # ---------------------------------------------------------------------------
 def main() -> None:
-    st.set_page_config(page_title="AI Curious Mind", page_icon="🧠", layout="centered")
+    st.set_page_config(page_title="AI Curious Mind by Prakhar Johri", page_icon="🧠", layout="centered")
     init_state()
 
     provider, model, api_key = render_sidebar()
